@@ -43,7 +43,7 @@
         <dd class="col-sm-8">@(Model.IsActive == true ? "啟用中" : "已停用")</dd>
 
         <dt class="col-sm-4">會員到期日</dt>
-        <dd class="col-sm-8">@(((DateOnly?)ViewData["SubEndDate"])?.ToString("yyyy-MM-dd") ?? "無資料or已過期")</dd>
+        <dd class="col-sm-8">@(((DateOnly?)ViewData["LatestSubDate"])?.ToString("yyyy-MM-dd") ?? "無資料or已過期")</dd>
 
         <dt class="col-sm-4">剩餘點數</dt>
         <dd class="col-sm-8">@Model.Point</dd>

@@ -60,6 +60,7 @@
         <td>@(acc.IsActive == true ? "✔" : "✘")</td>
         <td>
             <a asp-action="AccountDetail" asp-route-id="@acc.MemberId" class="btn btn-sm btn-outline-primary">查看</a>
+            <a asp-action="AccountEdit" asp-route-id="@acc.MemberId" class="btn btn-sm btn-outline-warning">啟用狀態</a>
         </td>
     </tr>
 }

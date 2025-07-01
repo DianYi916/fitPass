@@ -357,7 +357,48 @@ namespace fitPass.Controllers
             ViewData["LatestSubDate"] = latestSubDate?.EndDate;
             return View(account);
         }
-        //單筆帳戶資料修改
+        //單筆帳戶資料修改is active
+        [HttpGet]
+        public async Task<IActionResult> AccountEdit(int id)
+        {
+            var account = await _context.Accounts.FindAsync(id);
+            if (account == null)
+            {
+                return NotFound();
+            }
+            return View(account);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AccountEdit(int id, [Bind("MemberId,IsActive")] Account account)
+        {
+            if(id != account.MemberId)
+            {
+                return NotFound();
+            }
+
+            var existAccount = await _context.Accounts.FindAsync(id);
+            if(existAccount == null)
+            {
+                return NotFound();
+            }
+
+            existAccount.IsActive = account.IsActive;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "已更改帳戶啟用狀態";
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                ModelState.AddModelError("", "更新失敗，請稍後再試。");
+            }
+
+            return RedirectToAction(nameof(AccountOverview));
+
+        }
 
     }
 }
