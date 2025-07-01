@@ -1,0 +1,36 @@
+﻿@model List<fitPass.Models.ViewModels.InbodyMemberOverviewVM>
+
+<h2>Inbody 健身數據管理</h2>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>會員姓名</th>
+            <th>Email</th>
+            <th>Inbody 狀態</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var member in Model)
+        {
+            <tr>
+                <td>@member.Name</td>
+                <td>@member.Email</td>
+                <td>
+                    @(member.HasInbody ? "已有資料" : "尚未建立")
+                </td>
+                <td>
+                    @if (member.HasInbody)
+                    {
+                        <a asp-action="InbodyEdit" asp-route-memberId="@member.MemberId" class="btn btn-sm btn-primary">編輯</a>
+                    }
+                    else
+                    {
+                        <a asp-action="InbodyCreate" asp-route-memberId="@member.MemberId" class="btn btn-sm btn-success">新增</a>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
