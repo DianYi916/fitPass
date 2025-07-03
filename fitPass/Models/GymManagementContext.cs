@@ -143,6 +143,7 @@ public partial class GymManagementContext : DbContext
             entity.Property(e => e.Category).HasMaxLength(50);
             entity.Property(e => e.IsVisible).HasDefaultValue(true);
             entity.Property(e => e.PublishTime).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.Showtime).HasColumnType("datetime");
             entity.Property(e => e.Title).HasMaxLength(100);
         });
 
@@ -201,6 +202,7 @@ public partial class GymManagementContext : DbContext
             entity.Property(e => e.SubscriptionId).HasColumnName("SubscriptionID");
             entity.Property(e => e.MemberId).HasColumnName("MemberID");
             entity.Property(e => e.SubscribedTime).HasColumnName("subscribedTime");
+            entity.Property(e => e.SubscriptionType).HasMaxLength(50);
 
             entity.HasOne(d => d.Member).WithMany(p => p.SubscriptionLogs)
                 .HasForeignKey(d => d.MemberId)

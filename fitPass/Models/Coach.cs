@@ -15,7 +15,9 @@ public partial class Coach
 
     public byte[]? Photo { get; set; }
 
-    public virtual Account Account { get; set; } = null!;
+    public int? CoachType { get; set; }
+
+    public virtual Account? Account { get; set; } = null!;
 
     public virtual ICollection<CoachTime> CoachTimes { get; set; } = new List<CoachTime>();
 

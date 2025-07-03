@@ -15,7 +15,7 @@ public partial class SubscriptionLog
 
     public DateOnly EndDate { get; set; }
 
-    public string? SubscriptionType { get; set; }
+    public string SubscriptionType { get; set; } = null!;
 
     public virtual Account Member { get; set; } = null!;
 }

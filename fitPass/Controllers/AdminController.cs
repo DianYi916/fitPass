@@ -40,6 +40,8 @@ namespace fitPass.Controllers
             return View();
         }
 
+        /*-------------------------------------------------------------------------------------*/
+
         //公告管理首頁
         [HttpGet]
         public async Task<IActionResult> NewsList(string? keyword, string? category)
@@ -161,6 +163,8 @@ namespace fitPass.Controllers
             return View(model);
         }
 
+        /*----------------------------------------------------------------------------------------------*/
+
         //出入場紀錄總覽
         [HttpGet]
         public async Task<IActionResult> CheckInStatusList(string? keyword, string? range)
@@ -223,6 +227,8 @@ namespace fitPass.Controllers
 
             return View(statusList);
         }
+
+        /*-------------------------------------------------------------------------------------------*/
 
         //Inbody總覽
         [HttpGet]
@@ -314,6 +320,8 @@ namespace fitPass.Controllers
             return View("InbodyForm", inbody);
         }
 
+        /*---------------------------------------------------------------------------------------------*/
+
         //帳戶總覽
         public async Task<IActionResult> AccountOverview(string? keyword, int? gender, int? admin)
         {
@@ -343,6 +351,7 @@ namespace fitPass.Controllers
             ViewData["Admin"] = admin;
             return View(result);
         }
+        
         //單筆帳戶詳細資料
         [HttpGet]
         public async Task<IActionResult>AccountDetail(int id)
@@ -368,6 +377,8 @@ namespace fitPass.Controllers
             }
             return View(account);
         }
+
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -399,6 +410,127 @@ namespace fitPass.Controllers
             return RedirectToAction(nameof(AccountOverview));
 
         }
+
+        /*-------------------------------------------------------------------------------------------*/
+
+        //管理教練資料(coaches表)
+        [HttpGet]
+        public async Task<IActionResult> CoachMange()
+        {
+            var coachAccount = await _context.Accounts.Where(a => a.Admin == 2)
+                .Include(a => a.Coach)
+                .ToListAsync();
+
+            return View(coachAccount);
+        }
+
+        //create & edit coach
+        // GET: Admin/AddCoach/{accountId}
+        [HttpGet]
+        public async Task<IActionResult> AddCoach(int accountId)
+        {
+            var account = await _context.Accounts.FindAsync(accountId);
+            if (account == null || account.Admin != 2)
+            {
+                return NotFound();
+            }
+
+            // 如果已存在 Coach，不允許新增
+            var existing = await _context.Coaches.FirstOrDefaultAsync(c => c.AccountId == accountId);
+            if (existing != null)
+            {
+                TempData["Error"] = "該帳戶已經是教練，請使用編輯功能。";
+                return RedirectToAction(nameof(CoachMange));
+            }
+
+            var coach = new Coach { AccountId = accountId };
+            return View("AddCoach", coach);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddCoach(Coach coach, IFormFile? Photo)
+        {
+            Console.WriteLine($"[Debug] Coach.AccountId from POST: {coach.AccountId}");
+            if (!ModelState.IsValid)
+            {
+                foreach (var state in ModelState)
+                {
+                    if (state.Value.Errors.Count > 0)
+                    {
+                        Console.WriteLine($"[ModelState Error] Field: {state.Key}");
+                        foreach (var error in state.Value.Errors)
+                        {
+                            Console.WriteLine($"    Error: {error.ErrorMessage}");
+                        }
+                    }
+                }
+                TempData["Error"] = "資料驗證失敗";
+                return View("AddCoach", coach);
+            }
+
+            if (Photo != null && Photo.Length > 0)
+            {
+                using var ms = new MemoryStream();
+                await Photo.CopyToAsync(ms);
+                coach.Photo = ms.ToArray();
+            }
+
+            _context.Coaches.Add(coach);
+            await _context.SaveChangesAsync();
+
+            var result = await _context.SaveChangesAsync();
+            Console.WriteLine($"[Debug] SaveChanges affected rows: {result}");
+
+            TempData["Success"] = "已成功新增教練";
+            return RedirectToAction(nameof(CoachMange));
+        }
+
+        // GET: Admin/EditCoach/{coachId}
+        [HttpGet]
+        public async Task<IActionResult> EditCoach(int coachId)
+        {
+            var coach = await _context.Coaches
+                .Include(c => c.Account)
+                .FirstOrDefaultAsync(c => c.CoachId == coachId);
+
+            if (coach == null)
+            {
+                return NotFound();
+            }
+
+            return View("EditCoach", coach);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditCoach(Coach coach, IFormFile? Photo)
+        {
+            var existing = await _context.Coaches.FindAsync(coach.CoachId);
+            if (existing == null)
+            {
+                return NotFound();
+            }
+
+            existing.Specialty = coach.Specialty;
+            existing.Description = coach.Description;
+            existing.CoachType = coach.CoachType;
+
+            if (Photo != null && Photo.Length > 0)
+            {
+                using var ms = new MemoryStream();
+                await Photo.CopyToAsync(ms);
+                existing.Photo = ms.ToArray();
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "已更新教練資料";
+            return RedirectToAction(nameof(CoachMange));
+        }
+
+
+
 
     }
 }
