@@ -529,6 +529,220 @@ namespace fitPass.Controllers
             return RedirectToAction(nameof(CoachMange));
         }
 
+        //課程管理
+        //團體課程
+        //團課清單
+        public async Task<IActionResult> ClassList()
+        {
+            var classList = await _context.CourseSchedules.Include(c => c.Coach).ThenInclude(coach => coach.Account).Where(c => c.Coach.CoachType == 1).ToListAsync();
+
+            var result = classList.Select(course => new CourseWithCountViewModel
+            {
+                Course = course,
+                ReservationCount = _context.Reservations.Count(r => r.CourseId == course.CourseId && r.Status == 1)
+            }).ToList();
+            return View(result);
+        }
+
+        //單筆課程詳細
+        public async Task<IActionResult> ClassDetail(int id)
+        {
+            var course = await _context.CourseSchedules.Include(c => c.Coach).FirstOrDefaultAsync(c => c.CourseId == id);
+            if(course == null)
+            {
+                return NotFound();
+            }
+            return View(course);
+        }
+
+        //新增團體課程
+        [HttpGet]
+        public IActionResult CreateClass()
+        {
+            ViewData["CoachList"] = new SelectList(
+                _context.Coaches
+                    .Include(c => c.Account)
+                    .Where(c => c.CoachType == 1),
+                "CoachId", "Account.Name");
+
+            ViewData["LocationList"] = new List<SelectListItem>
+    {
+        new SelectListItem { Text = "教室 A", Value = "教室A" },
+        new SelectListItem { Text = "教室 B", Value = "教室B" }
+    };
+
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateClass(CourseSchedule course, IFormFile? courseImage)
+        {
+            if (!ModelState.IsValid)
+            {
+                foreach (var kvp in ModelState)
+                {
+                    foreach (var error in kvp.Value.Errors)
+                    {
+                        Console.WriteLine($"欄位: {kvp.Key} 錯誤: {error.ErrorMessage}");
+                    }
+                }
+            }
+            try
+            {
+                if (courseImage != null && courseImage.Length > 0)
+                {
+                    using (var ms = new MemoryStream())
+                    {
+                        await courseImage.CopyToAsync(ms);
+                        course.CourseImage = ms.ToArray();
+                    }
+                }
+
+                if (course.Price > 9999)
+                {
+                    ModelState.AddModelError("Price", "價格不能超過 9999 元");
+                }
+
+                if (ModelState.IsValid)
+                {
+                    course.IsCanceled = false;
+                    _context.CourseSchedules.Add(course);
+                    await _context.SaveChangesAsync();
+                    return RedirectToAction("ClassList");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("⚠️ 寫入失敗：" + ex.Message);
+                ModelState.AddModelError("", "資料儲存失敗：" + ex.Message);
+            }
+
+
+            ViewData["CoachList"] = new SelectList(
+                _context.Coaches.Include(c => c.Account).Where(c => c.CoachType == 1),
+                "CoachId", "Account.Name", course.CoachId);
+
+            ViewData["LocationList"] = new List<SelectListItem>
+            {
+                 new SelectListItem { Text = "教室 A", Value = "教室A" },
+                new SelectListItem { Text = "教室 B", Value = "教室B" }
+            };
+
+            return View(course);
+        }
+
+        //編輯團體課程
+        [HttpGet]
+        public async Task<IActionResult> EditClass(int id)
+        {
+            var course = await _context.CourseSchedules.FindAsync(id);
+            if (course == null) return NotFound();
+
+            ViewData["CoachList"] = new SelectList(
+                _context.Coaches.Include(c => c.Account).Where(c => c.CoachType == 1),
+                "CoachId", "Account.Name", course.CoachId);
+
+            ViewData["LocationList"] = new List<SelectListItem>
+            {
+                new SelectListItem { Text = "教室 A", Value = "教室A" },
+                new SelectListItem { Text = "教室 B", Value = "教室B" }
+            };
+
+            return View(course);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditClass(CourseSchedule course, IFormFile? newImage)
+        {
+            if (newImage != null && newImage.Length > 0)
+            {
+                using var ms = new MemoryStream();
+                await newImage.CopyToAsync(ms);
+                course.CourseImage = ms.ToArray();
+            }
+            else
+            {
+                
+                var old = await _context.CourseSchedules.AsNoTracking()
+                    .Where(c => c.CourseId == course.CourseId)
+                    .Select(c => c.CourseImage)
+                    .FirstOrDefaultAsync();
+
+                course.CourseImage = old;
+            }
+
+            if (course.Price > 9999)
+            {
+                ModelState.AddModelError("Price", "價格不得超過 9999");
+            }
+
+            if (ModelState.IsValid)
+            {
+                _context.CourseSchedules.Update(course);
+                await _context.SaveChangesAsync();
+                return RedirectToAction("ClassList");
+            }
+
+            
+            ViewData["CoachList"] = new SelectList(
+                _context.Coaches.Include(c => c.Account).Where(c => c.CoachType == 1),
+                "CoachId", "Account.Name", course.CoachId);
+
+            ViewData["LocationList"] = new List<SelectListItem>
+            {
+                new SelectListItem { Text = "教室 A", Value = "教室A" },
+                new SelectListItem { Text = "教室 B", Value = "教室B" }
+            };
+
+            return View(course);
+        }
+
+        //私教課程總覽
+        public async Task<IActionResult> PrivateSessionOverview()
+        {
+            var monthStart = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1);
+            var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+
+            var members = await _context.Accounts
+                .Where(a => a.Admin == 1)
+                .ToDictionaryAsync(a => a.MemberId, a => a.Name);
+
+            var coaches = await _context.Coaches
+                .Include(c => c.Account)
+                .Include(c => c.CoachTimes)
+                    .ThenInclude(ct => ct.PrivateSessions)
+                .Where(c => c.CoachType == 2)
+                .ToListAsync();
+
+            var viewModels = coaches.Select(c => new CoachPrivateScheduleViewModel
+            {
+                CoachId = c.CoachId,
+                CoachName = c.Account?.Name ?? $"Coach#{c.CoachId}",
+                Specialty = c.Specialty,
+                Photo = c.Photo,
+                CoachTimes = c.CoachTimes
+                    .OrderBy(t => t.Date).ThenBy(t => t.TimeSlot)
+                    .Select(t => {
+                        var reserved = t.Status == 1;
+                        var session = t.PrivateSessions.FirstOrDefault();
+                        string? memberName = reserved && session != null && members.TryGetValue(session.MemberId, out var name)
+                            ? name
+                            : null;
+
+                        return new CoachTimeInfo
+                        {
+                            Date = t.Date,
+                            TimeSlot = t.TimeSlot,
+                            IsReserved = reserved,
+                            MemberName = memberName
+                        };
+                    }).ToList()
+            }).ToList();
+
+            return View(viewModels);
+        }
 
 
 

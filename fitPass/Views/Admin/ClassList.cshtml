@@ -1,0 +1,64 @@
+﻿@model List<fitPass.Models.ViewModels.CourseWithCountViewModel>
+
+@{
+    ViewData["Title"] = "團體課程清單";
+
+    string weekDay(int? day) => day switch
+    {
+        1 => "星期一",
+        2 => "星期二",
+        3 => "星期三",
+        4 => "星期四",
+        5 => "星期五",
+        6 => "星期六",
+        7 => "星期日",
+        _ => "資料異常請聯絡工程師"
+    };
+
+    string daytime(int? slot)
+    {
+        if(slot is >=1 and <= 18)
+        {
+            int startHour = 6 + (slot.Value - 1);
+            int endHour = startHour + 1;
+            return $"{startHour:00}:00 - {endHour:00}:00";
+        }
+        return "資料異常請聯絡工程師";
+    }
+}
+
+<h2 class="mt-4">團體課程清單</h2>
+
+<table class="table table-bordered mt-3">
+    <thead class="table-light">
+        <tr>
+            <th>課程名稱</th>
+            <th>教練姓名</th>
+            <th>時間</th>
+            <th>起訖時間</th>
+            <th>人數</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var course in Model)
+        {
+            
+            <tr>
+                <td>@course.Course.Title</td>
+                <td>@course.Course.Coach?.Account?.Name</td>
+                <td>
+                    @weekDay(course.Course.ClassTimeDayOfWeek) / @daytime(course.Course.ClassTimeDaily)
+                </td>
+                <td>@course.Course.ClassStartDate ~ @course.Course.ClassEndDate</td>
+                <td>@course.ReservationCount / @course.Course.MaxStudent</td>
+                <td>
+                    <a asp-action="ClassDetail" asp-route-id="@course.Course.CourseId" class="btn btn-sm btn-info">詳細</a>
+                    <a asp-action="EditClass" asp-route-id="@course.Course.CourseId" class="btn btn-sm btn-warning">編輯</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<a asp-action="CreateClass" class="btn btn-primary">新增課程</a>

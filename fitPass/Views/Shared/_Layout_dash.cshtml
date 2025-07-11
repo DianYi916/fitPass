@@ -1,0 +1,77 @@
+﻿@{
+    Layout = null;
+    var title = ViewData["Title"] ?? "後台管理";
+}
+
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@title - fitPass後台</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/fitPass.styles.css" asp-append-version="true" />
+    <style>
+        body {
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 220px;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            background-color: #343a40;
+            padding-top: 60px;
+        }
+        .sidebar .nav-link {
+            color: #ffffff;
+        }
+        .sidebar .nav-link.active {
+            background-color: #495057;
+        }
+        .content-area {
+            margin-left: 220px;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar d-flex flex-column position-fixed">
+        <h4 class="text-white text-center">fitPass 後台</h4>
+        <nav class="nav flex-column mt-4">
+            <a class="nav-link" asp-controller="Admin" asp-action="Dashbord">📊 後台首頁</a>
+            <a class="nav-link" asp-controller="Admin" asp-action="NewsList">📰 公告管理</a>
+            <a class="nav-link" asp-controller="Admin" asp-action="ClassList">📚 團體課程</a>
+            <a class="nav-link" asp-controller="Admin" asp-action="PrivateSessionOverview">🏋️‍♂️ 私教課程</a>
+            <a class="nav-link" asp-controller="Admin" asp-action="CheckInStatusList">📅 入場紀錄</a>
+            <a class="nav-link" asp-controller="Admin" asp-action="AccountOverview">👤 會員管理</a>
+            <a class="nav-link" asp-controller="Admin" asp-action="CoachMange">👤 教練管理</a>
+            <a class="nav-link" asp-controller="Admin" asp-action="InbodyOverview">📅Inbody</a>
+        </nav>
+    </div>
+
+    <!-- Main content -->
+    <div class="content-area">
+        <header class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+            <h2>@title</h2>
+        </header>
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+
+        <footer class="border-top pt-3 text-muted">
+            <div class="container">
+                &copy; 2025 - fitPass 後台管理系統
+            </div>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
