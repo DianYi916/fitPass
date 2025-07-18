@@ -3,6 +3,9 @@
     ViewData["Title"] = Model.InBodyId == 0 ? "新增 Inbody" : "編輯 Inbody";
 }
 
+
+
+<div class="dashboard-box">
 <h2>@ViewData["Title"] - @ViewBag.MemberName</h2>
 
 <form asp-action="@(Model.InBodyId == 0 ? "InbodyCreate" : "InbodyEdit")" method="post">
@@ -47,3 +50,4 @@
     <button type="submit" class="btn btn-primary mt-3">儲存</button>
     <a asp-action="InbodyOverview" class="btn btn-secondary mt-3">返回</a>
 </form>
+</div>

@@ -5,6 +5,7 @@
         public int MemberId { get; set; }
         public string Name { get; set; } = null!;
         public string Email { get; set; } = null!;
-        public bool HasInbody { get; set; }
+        public int InbodyCount { get; set; }
+        public DateOnly? LatestRecordDate { get; set; }
     }
 }

@@ -1,7 +1,43 @@
 ﻿@{
     ViewData["Title"] = "後台首頁";
 }
+<style>
+    
+    .fc-event-title,
+    .fc-event-time,
+    .fc-daygrid-day-number,
+    .fc-col-header-cell-cushion {
+        color: #33CC00 !important;
+    }
 
+    
+    .fc-col-header-cell-cushion,
+    .fc-daygrid-day-number {
+        text-decoration: none !important;
+        border-bottom: none !important;
+    }
+
+    
+    .fc-event-title {
+        white-space: normal !important;
+        word-wrap: break-word;
+        font-size: 0.85em; 
+    }
+    
+
+    .fc-daygrid-event {
+        height: auto !important;
+        line-height: 1.4em;
+    }
+
+   
+    .fc-daygrid-day-frame {
+        min-width: 120px;
+    }
+
+</style>
+
+<div class="dashboard-box">
 <div class="container-fluid">
     <div class="row">
         <!-- 今日公告數 -->
@@ -27,65 +63,33 @@
         <!-- 可以繼續新增區塊：會員總數、課程數等 -->
     </div>
 </div>
-<h4 class="mt-4">📅 本月課程總覽</h4>
-<table class="table table-bordered text-center">
-    <thead class="table-light">
-        <tr>
-            <th>日</th>
-            <th>一</th>
-            <th>二</th>
-            <th>三</th>
-            <th>四</th>
-            <th>五</th>
-            <th>六</th>
-        </tr>
-    </thead>
-    <tbody>
-        @* 假設這裡是6月，1號是星期六 *@
-        <tr>
-            <td colspan="6"></td>
-            <td>1</td>
-        </tr>
-        <tr>
-            <td>2</td>
-            <td>3</td>
-            <td>4</td>
-            <td>5</td>
-            <td>6</td>
-            <td>7</td>
-            <td>8</td>
-        </tr>
-        <tr>
-            <td>9</td>
-            <td>10</td>
-            <td>11</td>
-            <td>12</td>
-            <td>13</td>
-            <td>14</td>
-            <td>15</td>
-        </tr>
-        <tr>
-            <td>16</td>
-            <td>17</td>
-            <td>18</td>
-            <td>19</td>
-            <td>20</td>
-            <td>21</td>
-            <td>22</td>
-        </tr>
-        <tr>
-            <td>23</td>
-            <td>24</td>
-            <td>25</td>
-            <td>26</td>
-            <td>27</td>
-            <td>28</td>
-            <td>29</td>
-        </tr>
-        <tr>
-            <td>30</td>
-            <td colspan="6"></td>
-        </tr>
-    </tbody>
-</table>
+<hr />
+
+<h4>📅 課程排程月曆</h4>
+<div id="calendar" style="max-width: 1000px; margin: 0 auto;"></div>
+
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.css' rel='stylesheet' />
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js'></script>
+
+
+<div id='calendar'></div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var calendarEl = document.getElementById('calendar');
+
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'zh-tw',
+        timeZone: 'local', // ✅ 強制以瀏覽器的當地時區顯示
+        events: '/Admin/GetCoursesForCalendar',
+        eventClick: function(info) {
+            alert('課程名稱：' + info.event.title + '\n教練：' + info.event.extendedProps.coachName);
+        }
+    });
+
+        calendar.render();
+    });
+</script>
+
 

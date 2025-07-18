@@ -3,6 +3,8 @@
     ViewData["Title"] = "新增教練";
 }
 
+
+<div class="dashboard-box">
 <h2>@ViewData["Title"]</h2>
 
 <form asp-action="AddCoach" enctype="multipart/form-data" method="post">
@@ -35,3 +37,4 @@
     <button type="submit" class="btn btn-success">新增教練</button>
     <a asp-action="CoachMange" class="btn btn-secondary">取消</a>
 </form>
+</div>

@@ -40,6 +40,56 @@ namespace fitPass.Controllers
             return View();
         }
 
+        //full calender json
+        [HttpGet]
+        public async Task<IActionResult> GetCoursesForCalendar()
+        {
+            var courses = await _context.CourseSchedules
+                .Include(c => c.Coach)
+                    .ThenInclude(co => co.Account)
+                .ToListAsync();
+
+            var events = new List<object>();
+
+            foreach (var course in courses)
+            {
+                if (course.ClassStartDate == null || course.ClassEndDate == null ||
+                    course.ClassTimeDayOfWeek == null || course.ClassTimeDaily == null)
+                    continue;
+
+                var startDate = course.ClassStartDate.Value;
+                var endDate = course.ClassEndDate.Value;
+
+                // 轉換成 C# DayOfWeek
+                var dayOfWeek = (DayOfWeek)(course.ClassTimeDayOfWeek.Value % 7);
+
+                // 起始時間（每 1 時段 = 1 小時）
+                var startTime = TimeOnly.FromTimeSpan(TimeSpan.FromMinutes((course.ClassTimeDaily.Value - 1) * 60));
+
+                for (var date = startDate; date <= endDate; date = date.AddDays(1))
+                {
+                    if (date.DayOfWeek != dayOfWeek) continue;
+
+                    // ✅ 手動補正 6 小時偏差（暫時修正 FullCalendar 解讀錯誤）
+                    var startDateTime = date.ToDateTime(startTime).AddHours(6);
+                    var endDateTime = startDateTime.AddHours(1);
+
+                    events.Add(new
+                    {
+                        id = course.CourseId,
+                        title = $"{course.Title}",
+                        start = startDateTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                        end = endDateTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                        description = course.Description,
+                        coachName = course.Coach?.Account?.Name ?? "未指定"
+                    });
+                }
+            }
+
+            return Json(events);
+        }
+
+
         /*-------------------------------------------------------------------------------------*/
 
         //公告管理首頁
@@ -80,8 +130,9 @@ namespace fitPass.Controllers
         [HttpGet]
         public IActionResult CreateNews()
         {
+            var model = new News();
             ViewData["CategoryList"] = GetNewsCategoryList();
-            return View();
+            return View(model);
         }
 
         [HttpPost]
@@ -90,8 +141,6 @@ namespace fitPass.Controllers
         {
             if (ModelState.IsValid)
             {
-                model.PublishTime = DateTime.Now;
-                // 處理 Banner 圖片
                 if (BannerFile != null && BannerFile.Length > 0)
                 {
                     using var ms = new MemoryStream();
@@ -99,17 +148,18 @@ namespace fitPass.Controllers
                     model.Banner = ms.ToArray();
                 }
 
-                // 處理 Insideimg 圖片
                 if (InsideimgFile != null && InsideimgFile.Length > 0)
                 {
                     using var ms = new MemoryStream();
                     await InsideimgFile.CopyToAsync(ms);
                     model.Insideimg = ms.ToArray();
                 }
+
                 _context.News.Add(model);
                 await _context.SaveChangesAsync();
                 return RedirectToAction("NewsList");
             }
+
             ViewData["CategoryList"] = GetNewsCategoryList();
             return View(model);
         }
@@ -232,11 +282,24 @@ namespace fitPass.Controllers
 
         //Inbody總覽
         [HttpGet]
-        public async Task<IActionResult> InbodyOverview()
+        public async Task<IActionResult> InbodyOverview(string? keyword, int page = 1)
         {
-            var members = await _context.Accounts
-                .Where(a => a.Admin != 3) 
+            int pageSize = 8;
+            var query = _context.Accounts
+                .Where(a => a.Admin != 3)
                 .Include(a => a.Inbodies)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                query = query.Where(a => a.Name.Contains(keyword) || a.Email.Contains(keyword));
+            }
+
+            int totalCount = await query.CountAsync();
+            var members = await query
+                .OrderBy(a => a.MemberId)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
             var viewModel = members.Select(m => new InbodyMemberOverviewVM
@@ -244,11 +307,20 @@ namespace fitPass.Controllers
                 MemberId = m.MemberId,
                 Name = m.Name,
                 Email = m.Email,
-                HasInbody = m.Inbodies.Any()
+                InbodyCount = m.Inbodies.Count,
+                LatestRecordDate = m.Inbodies
+                    .OrderByDescending(i => i.RecordDate)
+                    .FirstOrDefault()?.RecordDate
             }).ToList();
+
+            ViewData["Keyword"] = keyword;
+            ViewData["CurrentPage"] = page;
+            ViewData["TotalPages"] = (int)Math.Ceiling((double)totalCount / pageSize);
 
             return View(viewModel);
         }
+
+
 
         //Inbody新增與編輯
         // GET: Admin/InbodyCreate/5
@@ -287,37 +359,22 @@ namespace fitPass.Controllers
             return View("InbodyForm",inbody);
         }
 
-        // GET
-        public async Task<IActionResult> InbodyEdit(int memberId)
+        //inbody detail
+        [HttpGet]
+        public async Task<IActionResult> InbodyDetail(int memberId)
         {
-            var inbody = await _context.Inbodies
-                .Where(i => i.MemberId == memberId)
-                .OrderByDescending(i => i.RecordDate)
-                .FirstOrDefaultAsync();
+            var member = await _context.Accounts
+                .Include(m => m.Inbodies)
+                .FirstOrDefaultAsync(m => m.MemberId == memberId);
 
-            if (inbody == null)
-            {
-                return RedirectToAction(nameof(InbodyCreate), new { memberId });
-            }
+            if (member == null) return NotFound();
 
-            ViewBag.MemberName = (await _context.Accounts.FindAsync(memberId))?.Name ?? "(未知)";
-            return View("InbodyForm", inbody);
-        }
+            var sortedData = member.Inbodies.OrderByDescending(i => i.RecordDate).ToList();
 
-        // POST
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> InbodyEdit(Inbody inbody)
-        {
-            if (ModelState.IsValid)
-            {
-                _context.Inbodies.Update(inbody);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(InbodyOverview));
-            }
+            ViewBag.MemberName = member.Name;
+            ViewBag.MemberId = member.MemberId;
 
-            ViewBag.MemberName = (await _context.Accounts.FindAsync(inbody.MemberId))?.Name ?? "(未知)";
-            return View("InbodyForm", inbody);
+            return View(sortedData);
         }
 
         /*---------------------------------------------------------------------------------------------*/
@@ -366,11 +423,11 @@ namespace fitPass.Controllers
             ViewData["LatestSubDate"] = latestSubDate?.EndDate;
             return View(account);
         }
-        //單筆帳戶資料修改is active
+        //單筆帳戶資料修改active admin 以及點數log與後台灌點數給帳戶
         [HttpGet]
         public async Task<IActionResult> AccountEdit(int id)
         {
-            var account = await _context.Accounts.FindAsync(id);
+            var account = await _context.Accounts.Include(a => a.PointLogs).FirstOrDefaultAsync(a => a.MemberId == id);
             if (account == null)
             {
                 return NotFound();
@@ -382,33 +439,53 @@ namespace fitPass.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AccountEdit(int id, [Bind("MemberId,IsActive")] Account account)
+        public async Task<IActionResult> AccountEdit(int id, [Bind("MemberId,IsActive")] Account account, int AddPoint = 0)
         {
-            if(id != account.MemberId)
+            if (id != account.MemberId)
             {
                 return NotFound();
             }
 
             var existAccount = await _context.Accounts.FindAsync(id);
-            if(existAccount == null)
+            if (existAccount == null)
             {
                 return NotFound();
             }
 
+            // ✅ 修改帳戶狀態
             existAccount.IsActive = account.IsActive;
+
+            // ✅ 加點並記錄 PointLog
+            if (AddPoint > 0)
+            {
+                int before = existAccount.Point;
+                existAccount.Point += AddPoint;
+
+                var log = new PointLog
+                {
+                    MemberId = existAccount.MemberId,
+                    AlterationTime = DateTime.Now,
+                    OriginalPoint = before,
+                    FinallPoint = existAccount.Point,
+                    Detail = $"後台加點 +{AddPoint} 點"
+                };
+
+                _context.PointLogs.Add(log);
+            }
 
             try
             {
                 await _context.SaveChangesAsync();
-                TempData["Success"] = "已更改帳戶啟用狀態";
+                TempData["Success"] = AddPoint > 0
+                    ? $"帳戶狀態已更新，並加 {AddPoint} 點成功"
+                    : "已更改帳戶啟用狀態";
             }
             catch (DbUpdateConcurrencyException)
             {
                 ModelState.AddModelError("", "更新失敗，請稍後再試。");
             }
 
-            return RedirectToAction(nameof(AccountOverview));
-
+            return RedirectToAction(nameof(AccountEdit), new { id });
         }
 
         /*-------------------------------------------------------------------------------------------*/
@@ -532,28 +609,106 @@ namespace fitPass.Controllers
         //課程管理
         //團體課程
         //團課清單
-        public async Task<IActionResult> ClassList()
+        public async Task<IActionResult> ClassList(string? keyword, int? coachId, int? weekday, string? status)
         {
-            var classList = await _context.CourseSchedules.Include(c => c.Coach).ThenInclude(coach => coach.Account).Where(c => c.Coach.CoachType == 1).ToListAsync();
+            var today = DateOnly.FromDateTime(DateTime.Today);
 
-            var result = classList.Select(course => new CourseWithCountViewModel
+            var query = _context.CourseSchedules
+                .Include(c => c.Coach)
+                    .ThenInclude(coach => coach.Account)
+                .Where(c => c.Coach.CoachType == 1)
+                .AsQueryable();
+
+            // 🔍 課程名稱模糊搜尋
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                query = query.Where(c => c.Title.Contains(keyword));
+            }
+
+            // 🧑‍🏫 教練過濾
+            if (coachId.HasValue)
+            {
+                query = query.Where(c => c.CoachId == coachId.Value);
+            }
+
+            // 🗓️ 星期幾過濾
+            if (weekday.HasValue)
+            {
+                query = query.Where(c => c.ClassTimeDayOfWeek == weekday);
+            }
+
+            // ⏳ 課程狀態過濾
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query = status switch
+                {
+                    "upcoming" => query.Where(c => c.ClassStartDate > today),
+                    "ongoing" => query.Where(c => c.ClassStartDate <= today && c.ClassEndDate >= today),
+                    "expired" => query.Where(c => c.ClassEndDate < today),
+                    _ => query
+                };
+            }
+
+            // 📊 撈出所有課程
+            var courseList = await query.ToListAsync();
+
+            // 📌 加入報名人數統計
+            var result = courseList.Select(course => new CourseWithCountViewModel
             {
                 Course = course,
                 ReservationCount = _context.Reservations.Count(r => r.CourseId == course.CourseId && r.Status == 1)
             }).ToList();
+
+            // 傳回查詢條件供 View 使用
+            ViewData["Keyword"] = keyword;
+            ViewData["CoachId"] = coachId;
+            ViewData["Weekday"] = weekday;
+            ViewData["Status"] = status;
+
+            // 建立教練下拉選單
+            ViewBag.CoachList = await _context.Coaches
+                .Include(c => c.Account)
+                .Where(c => c.CoachType == 1)
+                .Select(c => new SelectListItem
+                {
+                    Text = c.Account.Name,
+                    Value = c.CoachId.ToString()
+                }).ToListAsync();
+
             return View(result);
         }
+
 
         //單筆課程詳細
         public async Task<IActionResult> ClassDetail(int id)
         {
-            var course = await _context.CourseSchedules.Include(c => c.Coach).FirstOrDefaultAsync(c => c.CourseId == id);
-            if(course == null)
-            {
+            var course = await _context.CourseSchedules
+                .Include(c => c.Coach)
+                    .ThenInclude(coach => coach.Account)
+                .FirstOrDefaultAsync(c => c.CourseId == id);
+
+            if (course == null)
                 return NotFound();
-            }
-            return View(course);
+
+            var reservationCount = await _context.Reservations
+                .CountAsync(r => r.CourseId == course.CourseId && r.Status == 1);
+
+            var registeredMembers = await _context.Reservations
+                .Where(r => r.CourseId == course.CourseId && r.Status == 1)
+                .Include(r => r.Member)
+                .Select(r => r.Member)
+                .ToListAsync();
+
+            var viewModel = new CourseWithCountViewModel
+            {
+                Course = course,
+                ReservationCount = reservationCount,
+                RegisteredMembers = registeredMembers
+            };
+
+            return View(viewModel);
         }
+
 
         //新增團體課程
         [HttpGet]

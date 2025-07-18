@@ -3,6 +3,9 @@
     ViewData["Title"] = "新增公告";
 }
 
+
+
+<div class="dashboard-box">
 <h2>📝 新增公告</h2>
 
 <form asp-action="CreateNews" method="post" enctype="multipart/form-data">
@@ -29,8 +32,15 @@
         <span asp-validation-for="Level" class="text-danger"></span>
     </div>
 
+        <div class="mb-3">
+            <label asp-for="PublishTime" class="form-label">發布時間</label>
+            <input asp-for="PublishTime" type="date" class="form-control"
+                   value="@Model.PublishTime?.ToString("yyyy-MM-dd")" />
+            <span asp-validation-for="PublishTime" class="text-danger"></span>
+        </div>
+
     <div class="mb-3">
-        <label asp-for="Showtime" class="form-label">顯示日期</label>
+        <label asp-for="Showtime" class="form-label">到期日期</label>
         <input asp-for="Showtime" type="datetime-local" class="form-control" />
         <span asp-validation-for="Showtime" class="text-danger"></span>
     </div>
@@ -70,3 +80,4 @@
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
 }
+</div>

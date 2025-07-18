@@ -9,6 +9,9 @@
     }
 }
 
+
+
+<div class="dashboard-box">
 <h2 class="mt-4">私人課程排班總覽</h2>
 
 @foreach (var coach in Model)
@@ -35,6 +38,10 @@
                     <input type="date" class="form-control w-auto" onchange="filterDate(@coach.CoachId, this.value)" />
                     <button class="btn btn-outline-danger" type="button" onclick="resetFilter(@coach.CoachId)">清除</button>
                     <div>
+                            <div class="form-check ms-3">
+                                <input class="form-check-input" type="checkbox" id="reservedOnly-@coach.CoachId" onchange="toggleReservedOnly(@coach.CoachId, this.checked)">
+                                <label class="form-check-label" for="reservedOnly-@coach.CoachId">已預約明細</label>
+                            </div>
                         <button class="btn btn-sm btn-outline-secondary" onclick="prevPage(@coach.CoachId)">上一頁</button>
                         <button class="btn btn-sm btn-outline-secondary" onclick="nextPage(@coach.CoachId)">下一頁</button>
                     </div>
@@ -55,7 +62,8 @@
                             var isThisMonth = t.Date.Month == thisMonth && t.Date.Year == thisYear;
                             <tr data-index="@i"
                                 data-date="@t.Date.ToString("yyyy-MM-dd")"
-                                data-thismonth="@(isThisMonth.ToString().ToLower())">
+                                data-thismonth="@(isThisMonth.ToString().ToLower())"
+                                data-reserved="@(t.IsReserved.ToString().ToLower())">
                                 <td>@t.Date.ToString("yyyy/MM/dd")</td>
                                 <td>@GetSlotTime(t.TimeSlot)</td>
                                 <td>
@@ -76,8 +84,9 @@
             </div>
         </div>
     </div>
-}
 
+}
+    </div>
 @section Scripts {
     <script>
         const pageSize = 10;
@@ -86,8 +95,7 @@
         function showPage(coachId) {
             const table = document.querySelector(`.coach-table[data-coach="${coachId}"]`);
             const rows = [...table.querySelectorAll("tbody tr")];
-
-            const state = coachPageState[coachId] || { page: 0, filter: '', onlyThisMonth: true };
+            const state = coachPageState[coachId] || { page: 0, filter: '', onlyThisMonth: true, reservedOnly: false };
 
             let visibleRows = rows;
 
@@ -99,10 +107,12 @@
                 visibleRows = visibleRows.filter(r => r.dataset.date === state.filter);
             }
 
-            // Hide all rows
+            if (state.reservedOnly) {
+                visibleRows = visibleRows.filter(r => r.dataset.reserved === "true");
+            }
+
             rows.forEach(r => r.style.display = "none");
 
-            // Show paged rows
             const start = state.page * pageSize;
             const end = start + pageSize;
             visibleRows.slice(start, end).forEach(r => r.style.display = "");
@@ -125,28 +135,44 @@
             showPage(coachId);
         }
 
+        function resetFilter(coachId) {
+            coachPageState[coachId].filter = '';
+            coachPageState[coachId].page = 0;
+            coachPageState[coachId].onlyThisMonth = true;
+            coachPageState[coachId].reservedOnly = false;
+
+            const dateInput = document.getElementById(`date-input-${coachId}`);
+            if (dateInput) {
+                dateInput.value = '';
+            }
+
+            const checkbox = document.getElementById(`reservedOnly-${coachId}`);
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+
+            showPage(coachId);
+        }
+
+        function toggleReservedOnly(coachId, checked) {
+            coachPageState[coachId].reservedOnly = checked;
+            coachPageState[coachId].page = 0;
+            showPage(coachId);
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.coach-table').forEach(table => {
                 const coachId = table.dataset.coach;
                 coachPageState[coachId] = {
                     page: 0,
                     filter: '',
-                    onlyThisMonth: true
+                    onlyThisMonth: true,
+                    reservedOnly: false
                 };
                 showPage(coachId);
             });
         });
-        function resetFilter(coachId) {
-            coachPageState[coachId].filter = '';
-            coachPageState[coachId].page = 0;
-            coachPageState[coachId].onlyThisMonth = true;
-            const dateInput = document.getElementById(`date-input-${coachId}`);
-            if (dateInput) {
-                dateInput.value = '';
-            }
-            showPage(coachId);
-        }
-
     </script>
 }
+
 

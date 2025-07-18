@@ -3,6 +3,9 @@
     ViewData["Title"] = "編輯公告";
 }
 
+
+
+<div class = "dashboard-box">
 <h2>✏️ 編輯公告</h2>
 
 <form asp-action="EditNews" method="post" enctype="multipart/form-data">
@@ -80,4 +83,4 @@
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
 }
-
+</div>

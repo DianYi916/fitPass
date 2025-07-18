@@ -1,8 +1,10 @@
 ﻿@{
     Layout = null;
     var title = ViewData["Title"] ?? "後台管理";
+    var currentAction = ViewContext.RouteData.Values["Action"]?.ToString();
+    var currentController = ViewContext.RouteData.Values["Controller"]?.ToString();
+    var userName = Context.Session.GetString("UserName") ?? "訪客";
 }
-
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -12,60 +14,157 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/fitPass.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
     <style>
-        body {
-            min-height: 100vh;
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden; /* ✅ 全頁無捲動 */
         }
+
         .sidebar {
             width: 220px;
             position: fixed;
             top: 0;
             bottom: 0;
-            background-color: #343a40;
-            padding-top: 60px;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            padding-top: 40px;
         }
-        .sidebar .nav-link {
-            color: #ffffff;
-        }
-        .sidebar .nav-link.active {
-            background-color: #495057;
-        }
+
+            .sidebar .nav-link {
+                color: #404040;
+                font-weight: 500;
+                font-size: 16px;
+                padding: 12px 20px;
+                display: flex;
+                align-items: center;
+            }
+
+                .sidebar .nav-link i {
+                    font-size: 20px;
+                    margin-right: 12px;
+                    color: #00D956;
+                }
+
+                .sidebar .nav-link.active {
+                    background-color: #E4E4E4;
+                    border-radius: 8px;
+                }
+
+            .sidebar .logo {
+                font-size: 28px;
+                font-weight: bold;
+                color: #00D956;
+                text-align: center;
+                margin-bottom: 30px;
+            }
+
+            .sidebar .user-box {
+                padding: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                border-top: 1px solid #eee;
+            }
+
+                .sidebar .user-box img {
+                    border-radius: 50%;
+                    width: 40px;
+                    height: 40px;
+                    object-fit: cover;
+                }
+
+                .sidebar .user-box span {
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #404040;
+                }
+
         .content-area {
             margin-left: 220px;
-            padding: 20px;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #ffffff;
+            padding: 32px;
+            box-sizing: border-box;
         }
+
+        .main-container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dashboard-box {
+            background-color: #F6F6F6;
+            border-radius: 12px;
+            padding: 24px;
+            flex: 1 1 auto;
+            overflow: auto;
+        }
+
+        /* 🔒 禁止所有可能聚焦的元素出現 caret 或可輸入狀態 */
+        *:focus,
+        *:active,
+        [contenteditable],
+        [tabindex] {
+            outline: none !important;
+            caret-color: transparent !important;
+            user-select: none !important;
+        }
+
+        /* ❗特別處理 h1~h6、div、p 等被 JS 插件強制加上 contenteditable 的標籤 */
+        h1[contenteditable], h2[contenteditable], h3[contenteditable],
+        h4[contenteditable], h5[contenteditable], h6[contenteditable],
+        div[contenteditable], p[contenteditable] {
+            pointer-events: none !important;
+        }
+
     </style>
 </head>
 <body>
     <!-- Sidebar -->
-    <div class="sidebar d-flex flex-column position-fixed">
-        <h4 class="text-white text-center">fitPass 後台</h4>
-        <nav class="nav flex-column mt-4">
-            <a class="nav-link" asp-controller="Admin" asp-action="Dashbord">📊 後台首頁</a>
-            <a class="nav-link" asp-controller="Admin" asp-action="NewsList">📰 公告管理</a>
-            <a class="nav-link" asp-controller="Admin" asp-action="ClassList">📚 團體課程</a>
-            <a class="nav-link" asp-controller="Admin" asp-action="PrivateSessionOverview">🏋️‍♂️ 私教課程</a>
-            <a class="nav-link" asp-controller="Admin" asp-action="CheckInStatusList">📅 入場紀錄</a>
-            <a class="nav-link" asp-controller="Admin" asp-action="AccountOverview">👤 會員管理</a>
-            <a class="nav-link" asp-controller="Admin" asp-action="CoachMange">👤 教練管理</a>
-            <a class="nav-link" asp-controller="Admin" asp-action="InbodyOverview">📅Inbody</a>
+    <div class="sidebar">
+        <div class="logo text-center mb-4">
+            <img src="~/img/fitPass.svg" alt="FitPass logo" class="img-fluid" style="width: 140px;" />
+        </div>
+
+        <nav class="nav flex-column px-2 flex-grow-1">
+            <a class="nav-link @(currentAction == "Dashbord" ? "active" : "")"
+               asp-controller="Admin" asp-action="Dashbord"><i class="bi bi-bar-chart-line"></i>後台首頁</a>
+            <a class="nav-link @(currentAction == "NewsList" ? "active" : "")"
+               asp-controller="Admin" asp-action="NewsList"><i class="bi bi-megaphone"></i>公告管理</a>
+            <a class="nav-link @(currentAction == "ClassList" ? "active" : "")"
+               asp-controller="Admin" asp-action="ClassList"><i class="bi bi-journal-text"></i>團體課程</a>
+            <a class="nav-link @(currentAction == "PrivateSessionOverview" ? "active" : "")"
+               asp-controller="Admin" asp-action="PrivateSessionOverview"><i class="bi bi-person-workspace"></i>私教課程</a>
+            <a class="nav-link @(currentAction == "CheckInStatusList" ? "active" : "")"
+               asp-controller="Admin" asp-action="CheckInStatusList"><i class="bi bi-calendar-check"></i>入場紀錄</a>
+            <a class="nav-link @(currentAction == "AccountOverview" ? "active" : "")"
+               asp-controller="Admin" asp-action="AccountOverview"><i class="bi bi-person-fill"></i>會員管理</a>
+            <a class="nav-link @(currentAction == "CoachMange" ? "active" : "")"
+               asp-controller="Admin" asp-action="CoachMange"><i class="bi bi-people-fill"></i>教練管理</a>
+            <a class="nav-link @(currentAction == "InbodyOverview" ? "active" : "")"
+               asp-controller="Admin" asp-action="InbodyOverview"><i class="bi bi-clipboard2-pulse"></i>Inbody</a>
         </nav>
+
+        <div class="user-box">
+            <img src="~/img/userimg.png" alt="@userName" />
+            <span>@userName</span>
+        </div>
     </div>
 
-    <!-- Main content -->
+    <!-- Main Content -->
     <div class="content-area">
-        <header class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-            <h2>@title</h2>
-        </header>
-        <main role="main" class="pb-3">
+        <div class="main-container">
             @RenderBody()
-        </main>
-
-        <footer class="border-top pt-3 text-muted">
-            <div class="container">
-                &copy; 2025 - fitPass 後台管理系統
-            </div>
-        </footer>
+        </div>
     </div>
 
     <!-- Scripts -->
