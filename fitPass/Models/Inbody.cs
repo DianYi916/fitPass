@@ -23,5 +23,5 @@ public partial class Inbody
 
     public string? GoalNote { get; set; }
 
-    public virtual Account Member { get; set; } = null!;
+    public virtual Account? Member { get; set; } = null!;
 }

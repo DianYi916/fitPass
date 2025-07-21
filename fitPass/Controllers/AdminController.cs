@@ -36,7 +36,7 @@ namespace fitPass.Controllers
             var today = DateTime.Today;
             ViewData["TodayNews"] = await _context.News
                 .CountAsync(n => n.Showtime.HasValue && n.Showtime.Value.Date == today);
-            ViewData["InsideNowCount"] = await _context.CheckInRecords.CountAsync(c => c.CheckType==1);
+            ViewData["InsideNowCount"] = await _context.CheckInRecords.CountAsync(c => c.CheckInTime.HasValue&&c.CheckInTime.Value.Date==today&&c.CheckOutTime==null);
             return View();
         }
 
@@ -217,66 +217,72 @@ namespace fitPass.Controllers
 
         //出入場紀錄總覽
         [HttpGet]
-        public async Task<IActionResult> CheckInStatusList(string? keyword, string? range)
+        public async Task<IActionResult> CheckInStatusList(string? keyword, string? range, string? mode)
         {
-            var membersQuery = _context.Accounts.AsQueryable();
+            var query = _context.CheckInRecords
+                .Include(r => r.Member)
+                .AsQueryable();
 
-            if (!string.IsNullOrEmpty(keyword))
-            {
-                membersQuery = membersQuery.Where(m => m.Name.Contains(keyword));
-            }
-
-            var members = await membersQuery.ToListAsync();
-            var statusList = new List<CheckInRecordStatusViewModel>();
             var today = DateTime.Today;
 
-            foreach (var member in members)
+            // ✅ 關鍵字查詢：會員名稱
+            if (!string.IsNullOrEmpty(keyword))
             {
-                var recordQuery = _context.CheckInRecords
-                    .Where(r => r.MemberId == member.MemberId);
+                query = query.Where(r => r.Member.Name.Contains(keyword));
+            }
 
-                // 篩選時間範圍
+            // ✅ 範圍查詢
+            if (mode == "abnormal")
+            {
+                // ✅ 異常條件：非今日入場 且 尚未退場
+                query = query.Where(r =>
+                    r.CheckInTime.HasValue &&
+                    r.CheckInTime.Value.Date != today &&
+                    r.CheckOutTime == null);
+            }
+            else
+            {
                 if (range == "today")
                 {
-                    recordQuery = recordQuery.Where(r =>
+                    query = query.Where(r =>
                         (r.CheckInTime.HasValue && r.CheckInTime.Value.Date == today) ||
                         (r.CheckOutTime.HasValue && r.CheckOutTime.Value.Date == today));
                 }
                 else if (range == "week")
                 {
-                    var startOfWeek = today.AddDays(-(int)today.DayOfWeek + 1); // 星期一為起點
-                    recordQuery = recordQuery.Where(r =>
+                    var startOfWeek = today.AddDays(-(int)today.DayOfWeek + 1);
+                    query = query.Where(r =>
                         (r.CheckInTime >= startOfWeek || r.CheckOutTime >= startOfWeek));
                 }
                 else if (range == "month")
                 {
                     var startOfMonth = new DateTime(today.Year, today.Month, 1);
-                    recordQuery = recordQuery.Where(r =>
+                    query = query.Where(r =>
                         (r.CheckInTime >= startOfMonth || r.CheckOutTime >= startOfMonth));
-                }
-
-                var latest = await recordQuery
-                    .OrderByDescending(r => r.CheckOutTime ?? r.CheckInTime)
-                    .FirstOrDefaultAsync();
-
-                if (latest != null)
-                {
-                    statusList.Add(new CheckInRecordStatusViewModel
-                    {
-                        MemberId = member.MemberId,
-                        MemberName = member.Name,
-                        CheckInTime = latest.CheckInTime,
-                        CheckOutTime = latest.CheckOutTime,
-                        Status = latest.CheckOutTime == null ? 1 : 2
-                    });
                 }
             }
 
+            // ✅ 資料轉換為 ViewModel 列表
+            var statusList = await query
+                .OrderByDescending(r => r.CheckInTime)
+                .Select(r => new CheckInRecordStatusViewModel
+                {
+                    RecordId = r.RecordId,
+                    MemberId = r.MemberId,
+                    MemberName = r.Member.Name,
+                    CheckInTime = r.CheckInTime,
+                    CheckOutTime = r.CheckOutTime,
+                    Status = r.CheckOutTime == null ? 1 : 2
+                }).ToListAsync();
+
             ViewData["Keyword"] = keyword;
             ViewData["Range"] = range;
+            ViewData["Mode"] = mode;
 
             return View(statusList);
         }
+
+
 
         /*-------------------------------------------------------------------------------------------*/
 
@@ -439,7 +445,7 @@ namespace fitPass.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AccountEdit(int id, [Bind("MemberId,IsActive")] Account account, int AddPoint = 0)
+        public async Task<IActionResult> AccountEdit(int id, [Bind("MemberId,IsActive,Admin")] Account account, int AddPoint = 0)
         {
             if (id != account.MemberId)
             {
@@ -454,6 +460,7 @@ namespace fitPass.Controllers
 
             // ✅ 修改帳戶狀態
             existAccount.IsActive = account.IsActive;
+            existAccount.Admin = account.Admin;
 
             // ✅ 加點並記錄 PointLog
             if (AddPoint > 0)
@@ -899,6 +906,30 @@ namespace fitPass.Controllers
             return View(viewModels);
         }
 
+        //一鍵更新異常出入場紀錄
+        [HttpPost]
+        public async Task<IActionResult> ForceCheckout(int recordId)
+        {
+            var record = await _context.CheckInRecords.FindAsync(recordId);
+            if (record == null || record.CheckOutTime != null)
+            {
+                return Json(new { success = false, message = "紀錄不存在或已退場" });
+            }
+
+            record.CheckOutTime = DateTime.Now;
+            record.CheckType = 2;
+
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true });
+        }
+
+        //登出
+        public IActionResult Logout()
+        {
+            HttpContext.Session.Clear(); 
+            return RedirectToAction("Login", "Account"); 
+        }
 
 
     }
