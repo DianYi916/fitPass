@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using fitPass;
 
 namespace fitPass.Controllers
 {
@@ -623,7 +624,7 @@ namespace fitPass.Controllers
             var query = _context.CourseSchedules
                 .Include(c => c.Coach)
                     .ThenInclude(coach => coach.Account)
-                .Where(c => c.Coach.CoachType == 1)
+                .Where(c => c.Coach.CoachType == 2)
                 .AsQueryable();
 
             // 🔍 課程名稱模糊搜尋
@@ -675,7 +676,7 @@ namespace fitPass.Controllers
             // 建立教練下拉選單
             ViewBag.CoachList = await _context.Coaches
                 .Include(c => c.Account)
-                .Where(c => c.CoachType == 1)
+                .Where(c => c.CoachType == 2)
                 .Select(c => new SelectListItem
                 {
                     Text = c.Account.Name,
@@ -724,7 +725,7 @@ namespace fitPass.Controllers
             ViewData["CoachList"] = new SelectList(
                 _context.Coaches
                     .Include(c => c.Account)
-                    .Where(c => c.CoachType == 1),
+                    .Where(c => c.CoachType == 2),
                 "CoachId", "Account.Name");
 
             ViewData["LocationList"] = new List<SelectListItem>
@@ -782,7 +783,7 @@ namespace fitPass.Controllers
 
 
             ViewData["CoachList"] = new SelectList(
-                _context.Coaches.Include(c => c.Account).Where(c => c.CoachType == 1),
+                _context.Coaches.Include(c => c.Account).Where(c => c.CoachType == 2),
                 "CoachId", "Account.Name", course.CoachId);
 
             ViewData["LocationList"] = new List<SelectListItem>
@@ -802,7 +803,7 @@ namespace fitPass.Controllers
             if (course == null) return NotFound();
 
             ViewData["CoachList"] = new SelectList(
-                _context.Coaches.Include(c => c.Account).Where(c => c.CoachType == 1),
+                _context.Coaches.Include(c => c.Account).Where(c => c.CoachType == 2),
                 "CoachId", "Account.Name", course.CoachId);
 
             ViewData["LocationList"] = new List<SelectListItem>
@@ -849,7 +850,7 @@ namespace fitPass.Controllers
 
             
             ViewData["CoachList"] = new SelectList(
-                _context.Coaches.Include(c => c.Account).Where(c => c.CoachType == 1),
+                _context.Coaches.Include(c => c.Account).Where(c => c.CoachType == 2),
                 "CoachId", "Account.Name", course.CoachId);
 
             ViewData["LocationList"] = new List<SelectListItem>
@@ -875,7 +876,7 @@ namespace fitPass.Controllers
                 .Include(c => c.Account)
                 .Include(c => c.CoachTimes)
                     .ThenInclude(ct => ct.PrivateSessions)
-                .Where(c => c.CoachType == 2)
+                .Where(c => c.CoachType == 1)
                 .ToListAsync();
 
             var viewModels = coaches.Select(c => new CoachPrivateScheduleViewModel
@@ -931,6 +932,69 @@ namespace fitPass.Controllers
             return RedirectToAction("Login", "Account"); 
         }
 
+        // 顯示寄信頁面
+        [HttpGet]
+        public IActionResult SendEmail(string? keyword, int? isActive)
+        {
+            // 抓全部 admin = 1,2,3 的帳號
+            var query = _context.Accounts
+                .Where(a => a.Admin == 1 || a.Admin == 2 || a.Admin == 3);
+
+            // 模糊搜尋
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                query = query.Where(a => a.Name.Contains(keyword) || a.Email.Contains(keyword));
+            }
+
+            // isActive篩選
+            if (isActive.HasValue)
+            {
+                bool activeFlag = (isActive == 1);
+                query = query.Where(a => a.IsActive == activeFlag);
+            }
+
+            var members = query.Select(a => new
+            {
+                a.MemberId,
+                a.Name,
+                a.Email,
+                IsActive = a.IsActive ?? false
+            }).ToList();
+
+            ViewBag.Members = members;
+            ViewBag.Keyword = keyword;
+            ViewBag.IsActive = isActive;
+
+            return View();
+        }
+
+
+        // 寄信
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult SendEmail(List<int> selectedMemberIds, string subject, string body)
+        {
+            if (selectedMemberIds == null || selectedMemberIds.Count == 0)
+            {
+                TempData["Error"] = "請至少選擇一位會員";
+                return RedirectToAction("SendEmail");
+            }
+
+            var selectedEmails = _context.Accounts
+                .Where(a => selectedMemberIds.Contains(a.MemberId))
+                .Select(a => new { a.Email, a.Name })
+                .ToList();
+
+            var mailSender = new email(); 
+            foreach (var m in selectedEmails)
+            {
+                string personalizedBody = $"<p>親愛的 {m.Name} 您好，</p>" + body;
+                mailSender.SendMail(m.Email, subject, personalizedBody);
+            }
+
+            TempData["Success"] = "成功寄出信件";
+            return RedirectToAction("SendEmail");
+        }
 
     }
 }

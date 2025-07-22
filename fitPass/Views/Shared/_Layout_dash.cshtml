@@ -49,7 +49,7 @@
                 }
 
                 .sidebar .nav-link.active {
-                    background-color: #E4E4E4;
+                    background-color: #F6F6F6;
                     border-radius: 8px;
                 }
 
@@ -141,7 +141,7 @@
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="logo text-center mb-4">
-            <img src="~/img/fitPass.svg" alt="FitPass logo" class="img-fluid" style="width: 140px;" />
+            <img src="~/img/FP_GR.svg" alt="FitPass logo" class="img-fluid" style="width: 140px;" />
         </div>
 
         <nav class="nav flex-column px-2 flex-grow-1">
@@ -161,6 +161,9 @@
                asp-controller="Admin" asp-action="CoachMange"><i class="bi bi-people-fill"></i>教練管理</a>
             <a class="nav-link @(currentAction == "InbodyOverview" ? "active" : "")"
                asp-controller="Admin" asp-action="InbodyOverview"><i class="bi bi-clipboard2-pulse"></i>Inbody</a>
+            <a class="nav-link @(currentAction == "SendEmail" ? "active" : "")"
+               asp-controller="Admin" asp-action="SendEmail"><i class="bi bi-envelope-at"></i> 寄送信件</a>
+
         </nav>
 
         <div class="user-box">
