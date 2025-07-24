@@ -33,8 +33,7 @@ public partial class CourseSchedule
 
     public byte[]? CourseImage { get; set; }
 
-    public virtual Coach? Coach { get; set; }
-
+    public virtual Coach? Coach { get; set; } = null!;
 
     public virtual ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
 }

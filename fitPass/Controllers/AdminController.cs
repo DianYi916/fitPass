@@ -38,6 +38,7 @@ namespace fitPass.Controllers
             ViewData["TodayNews"] = await _context.News
                 .CountAsync(n => n.Showtime.HasValue && n.Showtime.Value.Date == today);
             ViewData["InsideNowCount"] = await _context.CheckInRecords.CountAsync(c => c.CheckInTime.HasValue&&c.CheckInTime.Value.Date==today&&c.CheckOutTime==null);
+            ViewData["FeedbackPendingCount"] = await _context.Feedbacks.CountAsync(f => f.Status == 1);
             return View();
         }
 
@@ -95,7 +96,7 @@ namespace fitPass.Controllers
 
         //公告管理首頁
         [HttpGet]
-        public async Task<IActionResult> NewsList(string? keyword, string? category)
+        public async Task<IActionResult> NewsList(string? keyword, string? category, bool? dueToday)
         {
             var query = _context.News.AsQueryable();
 
@@ -106,16 +107,23 @@ namespace fitPass.Controllers
 
             if (!string.IsNullOrEmpty(category))
             {
-                query = query.Where(n => n.Category==category);
+                query = query.Where(n => n.Category == category);
+            }
+
+            if (dueToday == true)
+            {
+                var today = DateTime.Today;
+                query = query.Where(n => n.Showtime.HasValue && n.Showtime.Value.Date == today);
             }
 
             ViewData["CategoryList"] = GetNewsCategoryList();
             ViewData["Keyword"] = keyword;
             ViewData["SelectedCategory"] = category;
+            ViewData["DueToday"] = dueToday;
+
             var newsList = await query.OrderByDescending(n => n.PublishTime).ToListAsync();
             return View(newsList);
         }
-
         //公告單筆詳細
         [HttpGet]
         public async Task<IActionResult> NewsDetail(int id)
@@ -996,5 +1004,70 @@ namespace fitPass.Controllers
             return RedirectToAction("SendEmail");
         }
 
+        // 一頁式顯示所有 Feedback
+        [HttpGet]
+        public async Task<IActionResult> FeedbackList(string? keyword,int? status,DateTime? publishtime)
+        {
+            var query = _context.Feedbacks
+                .Include(f => f.Member)
+                .Include(f => f.Attaches)
+                .Include(f => f.FeedbackComments)
+                .AsQueryable();
+            // 名稱關鍵字模糊搜尋
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                query = query.Where(f => f.Member.Name.Contains(keyword));
+            }
+
+            // 狀態篩選
+            if (status.HasValue)
+            {
+                query = query.Where(f => f.Status == status);
+            }
+
+            // 時間範圍搜尋（CreatedAt）
+            if (publishtime.HasValue)
+            {
+                query = query.Where(f => f.CreatedAt >= publishtime.Value);
+            }
+
+            var result = await query.OrderByDescending(f => f.FeedbackId).ToListAsync();
+            ViewBag.Keyword = keyword;
+            ViewBag.Status = status;
+            ViewBag.publishtime = publishtime;
+            return View(result);
+        }
+
+        // 接收管理員回覆留言
+        [HttpPost]
+        public async Task<IActionResult> Reply(int feedbackId, string commentText)
+        {
+            var comment = new FeedbackComment
+            {
+                FeedbackId = feedbackId,
+                CommentText = commentText,
+                CreatedAt = DateTime.Now,
+                Admin = true
+            };
+
+            _context.FeedbackComments.Add(comment);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "回覆成功";
+            return RedirectToAction("FeedbackList");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateFeedbackStatus(int feedbackId, int newStatus)
+        {
+            var feedback = await _context.Feedbacks.FindAsync(feedbackId);
+            if (feedback == null) return NotFound();
+
+            feedback.Status = newStatus;
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "狀態更新成功";
+            return RedirectToAction("FeedbackList");
+        }
     }
 }

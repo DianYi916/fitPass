@@ -163,7 +163,8 @@
                asp-controller="Admin" asp-action="InbodyOverview"><i class="bi bi-clipboard2-pulse"></i>Inbody</a>
             <a class="nav-link @(currentAction == "SendEmail" ? "active" : "")"
                asp-controller="Admin" asp-action="SendEmail"><i class="bi bi-envelope-at"></i> 寄送信件</a>
-
+            <a class="nav-link @(currentAction == "FeedbackList" ? "active" : "")"
+               asp-controller="Admin" asp-action="FeedbackList"><i class="bi bi-chat-left-text"></i> 意見回饋管理</a>
         </nav>
 
         <div class="user-box">

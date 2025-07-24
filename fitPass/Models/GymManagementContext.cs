@@ -17,6 +17,8 @@ public partial class GymManagementContext : DbContext
 
     public virtual DbSet<Account> Accounts { get; set; }
 
+    public virtual DbSet<Attach> Attaches { get; set; }
+
     public virtual DbSet<CheckInRecord> CheckInRecords { get; set; }
 
     public virtual DbSet<Coach> Coaches { get; set; }
@@ -24,6 +26,10 @@ public partial class GymManagementContext : DbContext
     public virtual DbSet<CoachTime> CoachTimes { get; set; }
 
     public virtual DbSet<CourseSchedule> CourseSchedules { get; set; }
+
+    public virtual DbSet<Feedback> Feedbacks { get; set; }
+
+    public virtual DbSet<FeedbackComment> FeedbackComments { get; set; }
 
     public virtual DbSet<Inbody> Inbodies { get; set; }
 
@@ -38,7 +44,8 @@ public partial class GymManagementContext : DbContext
     public virtual DbSet<SubscriptionLog> SubscriptionLogs { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseSqlServer("Name=fitPass");
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseSqlServer("Server=.\\sqlexpress;Database=GymManagement;Integrated Security=True;Encrypt=False;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -57,6 +64,20 @@ public partial class GymManagementContext : DbContext
             entity.Property(e => e.PasswordHash).HasMaxLength(256);
             entity.Property(e => e.Phone).HasMaxLength(20);
             entity.Property(e => e.Type).HasDefaultValue(1);
+        });
+
+        modelBuilder.Entity<Attach>(entity =>
+        {
+            entity.ToTable("Attach");
+
+            entity.Property(e => e.AttachId).HasColumnName("AttachID");
+            entity.Property(e => e.FeedbackId).HasColumnName("FeedbackID");
+            entity.Property(e => e.Photo).HasColumnName("photo");
+
+            entity.HasOne(d => d.Feedback).WithMany(p => p.Attaches)
+                .HasForeignKey(d => d.FeedbackId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Attach_Feedback");
         });
 
         modelBuilder.Entity<CheckInRecord>(entity =>
@@ -117,6 +138,37 @@ public partial class GymManagementContext : DbContext
                 .HasForeignKey(d => d.CoachId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__CourseSchedule__Coaches");
+        });
+
+        modelBuilder.Entity<Feedback>(entity =>
+        {
+            entity.ToTable("Feedback");
+
+            entity.Property(e => e.FeedbackId).HasColumnName("FeedbackID");
+            entity.Property(e => e.CreatedAt).HasColumnName("Created_at");
+            entity.Property(e => e.Subject).HasMaxLength(50);
+
+            entity.HasOne(d => d.Member).WithMany(p => p.Feedbacks)
+                .HasForeignKey(d => d.MemberId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Feedback_Account");
+        });
+
+        modelBuilder.Entity<FeedbackComment>(entity =>
+        {
+            entity.HasKey(e => e.CommentId);
+
+            entity.ToTable("Feedback_Comments");
+
+            entity.Property(e => e.CommentId).HasColumnName("CommentID");
+            entity.Property(e => e.CommentText).HasColumnName("Comment_text");
+            entity.Property(e => e.CreatedAt).HasColumnName("Created_at");
+            entity.Property(e => e.FeedbackId).HasColumnName("FeedbackID");
+
+            entity.HasOne(d => d.Feedback).WithMany(p => p.FeedbackComments)
+                .HasForeignKey(d => d.FeedbackId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Feedback_Comments_Feedback");
         });
 
         modelBuilder.Entity<Inbody>(entity =>

@@ -39,6 +39,8 @@ public partial class Account
 
     public virtual Coach? Coach { get; set; }
 
+    public virtual ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
+
     public virtual ICollection<Inbody> Inbodies { get; set; } = new List<Inbody>();
 
     public virtual ICollection<PointLog> PointLogs { get; set; } = new List<PointLog>();
